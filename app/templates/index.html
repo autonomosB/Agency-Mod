@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Marketing Assistant</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+
+<body>
+    <div class="container">
+        <header>
+            <h1>AI Marketing Assistant</h1>
+            <p class="subtitle">Análisis y estrategias de marketing impulsadas por IA</p>
+        </header>
+
+        <main>
+            <div class="form-container">
+                <form id="taskForm" method="POST">
+                    <div class="form-group">
+                        <label for="brand_task">Nombre de la marca o empresa:</label>
+                        <input type="text" id="brand_task" name="brand_task" required placeholder="Ej: Nike, Coca-Cola, Mi Empresa">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="user_task">Objetivo o problema a resolver:</label>
+                        <textarea id="user_task" name="user_task" required placeholder="Describe el objetivo o problema que necesitas resolver..."></textarea>
+                    </div>
+
+                    <button type="submit" class="submit-btn">
+                        <span class="btn-text">Analizar</span>
+                        <span class="btn-icon">→</span>
+                    </button>
+                </form>
+            </div>
+
+            <div id="loading" class="loading hidden">
+                <div class="spinner"></div>
+                <p>Analizando tu solicitud...</p>
+                <p class="loading-detail">Esto puede tomar unos momentos</p>
+            </div>
+
+            <div id="response" class="response-container"></div>
+        </main>
+    </div>
+
+    <script>
+        document.getElementById('taskForm').addEventListener('submit', async(e) => {
+            e.preventDefault();
+
+            const loading = document.getElementById('loading');
+            const response = document.getElementById('response');
+            const submitBtn = document.querySelector('.submit-btn');
+
+            // Debug logs
+            console.log('Iniciando envío de formulario...');
+
+            // Obtener datos del formulario
+            const brand_task = document.getElementById('brand_task').value;
+            const user_task = document.getElementById('user_task').value;
+
+            console.log('Datos del formulario:', {
+                brand_task,
+                user_task
+            });
+
+            // Validación básica
+            if (!brand_task || !user_task) {
+                response.innerHTML = `
+                    <div class="error">
+                        <h3>Error:</h3>
+                        <p>Por favor completa todos los campos</p>
+                    </div>`;
+                return;
+            }
+
+            // Mostrar loading y deshabilitar botón
+            loading.classList.remove('hidden');
+            submitBtn.disabled = true;
+            response.innerHTML = '';
+
+            try {
+                console.log('Enviando solicitud a /api/analyze...');
+                const res = await fetch('/api/analyze', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        brand_task,
+                        user_task
+                    })
+                });
+
+                console.log('Respuesta recibida:', res.status);
+
+                if (!res.ok) {
+                    throw new Error(`Error HTTP: ${res.status}`);
+                }
+
+                const result = await res.json();
+                console.log('Datos recibidos:', result);
+
+                if (result.error) {
+                    response.innerHTML = `
+                        <div class="error">
+                            <h3>Error:</h3>
+                            <p>${result.error}</p>
+                        </div>`;
+                } else {
+                    response.innerHTML = `
+                        <div class="success">
+                            <h3>Resultados del análisis:</h3>
+                            <div class="result-section">
+                                <h4>Marca/Empresa:</h4>
+                                <p>${result.brand_task}</p>
+                            </div>
+                            <div class="result-section">
+                                <h4>Objetivo:</h4>
+                                <p>${result.user_task}</p>
+                            </div>
+                            <div class="result-section">
+                                <h4>Análisis y Recomendaciones:</h4>
+                                <div class="analysis-content">
+                                    ${formatResponse(result.response)}
+                                </div>
+                            </div>
+                        </div>`;
+                }
+            } catch (error) {
+                console.error('Error en la solicitud:', error);
+                response.innerHTML = `
+                    <div class="error">
+                        <h3>Error:</h3>
+                        <p>Hubo un problema al procesar tu solicitud: ${error.message}</p>
+                    </div>`;
+            } finally {
+                loading.classList.add('hidden');
+                submitBtn.disabled = false;
+            }
+        });
+
+        function formatResponse(response) {
+            if (typeof response === 'string') {
+                return response.replace(/\n/g, '<br>');
+            } else if (typeof response === 'object') {
+                try {
+                    return `<pre>${JSON.stringify(response, null, 2)}</pre>`;
+                } catch (e) {
+                    return 'Error al formatear la respuesta';
+                }
+            }
+            return response || 'No hay respuesta disponible';
+        }
+    </script>
+</body>
+
+</html>
